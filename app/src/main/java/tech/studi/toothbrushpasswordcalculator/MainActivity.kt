@@ -21,6 +21,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var idTextView: TextView
     private lateinit var mfgDateView: TextView
     private lateinit var passwordView: TextView
+    private lateinit var passwordDescription: TextView
+    private lateinit var dateDescription: TextView
+    private lateinit var idDescription: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +33,9 @@ class MainActivity : AppCompatActivity() {
         idTextView = findViewById(R.id.id_text)
         mfgDateView = findViewById(R.id.mfgDateView)
         passwordView = findViewById(R.id.passwordView)
+        passwordDescription = findViewById(R.id.passwordDescription)
+        idDescription = findViewById(R.id.idDescription)
+        dateDescription = findViewById(R.id.dateDescription)
 
         val intent = Intent(this, javaClass).apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -68,6 +74,7 @@ class MainActivity : AppCompatActivity() {
                     // Convert the byte array ID to a hexadecimal string.
                     idString = id.joinToString("") { "%02x".format(it) }
                     idTextView.text = idString
+                    idDescription.visibility = View.VISIBLE
                 }
                 val nfcA = NfcA.get(tag)
                 nfcA.connect()
@@ -77,6 +84,7 @@ class MainActivity : AppCompatActivity() {
                 mfgDate= hexToString(responseLow, responseHigh)
                 mfgDateView.text = mfgDate
                 mfgDateView.visibility = View.VISIBLE
+                dateDescription.visibility = View.VISIBLE
                 nfcA.close()
                 val idStringFixed=idString
                 val mfgDateFixed = mfgDate
@@ -85,6 +93,7 @@ class MainActivity : AppCompatActivity() {
                     if(!password.isNullOrEmpty()){
                         passwordView.text = password
                         passwordView.visibility = View.VISIBLE
+                        passwordDescription.visibility = View.VISIBLE
                     }
                 }
             }

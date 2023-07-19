@@ -31,9 +31,37 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="TextView"
-        android:visibility="visible"
+        android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/mfgDateView" />
+
+    <TextView
+        android:id="@+id/passwordDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Password: "
+        android:visibility="invisible"
+        app:layout_constraintEnd_toStartOf="@+id/passwordView"
+        app:layout_constraintTop_toBottomOf="@+id/dateDescription" />
+
+    <TextView
+        android:id="@+id/idDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tag ID: "
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/id_text"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/dateDescription"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="mfg Date: "
+        android:visibility="invisible"
+        app:layout_constraintEnd_toStartOf="@+id/mfgDateView"
+        app:layout_constraintTop_toBottomOf="@+id/idDescription" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
