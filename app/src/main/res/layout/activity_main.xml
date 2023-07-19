@@ -64,4 +64,15 @@
         app:layout_constraintEnd_toStartOf="@+id/mfgDateView"
         app:layout_constraintTop_toBottomOf="@+id/idDescription" />
 
+    <Button
+        android:id="@+id/resetButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="Reset runtime to 0"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/passwordView" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
