@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.nfc.TagLostException
 import android.nfc.tech.NfcA
 import android.os.Bundle
 import android.util.Log
@@ -99,12 +100,15 @@ class MainActivity : AppCompatActivity() {
                 val mfgDateFixed = mfgDate
                 if (idStringFixed.isNotEmpty() && mfgDateFixed.isNotEmpty()) {
                     Log.d("handleIntent", "idSting and mfgDate is not empty")
-                    if (mustOverwrite && lastScannedTagID === idStringFixed) {
+                    Log.d("handleIntent", "mustOverwrite is $mustOverwrite")
+                    Log.d("handleIntent", "lastScannedID is $lastScannedTagID")
+                    Log.d("handleIntent", "idStringFixed is $idStringFixed")
+                    if (mustOverwrite && lastScannedTagID == idStringFixed) {
                         Log.d("overwriting", "setting the runtime to 0")
                         try {
                             resetRuntime(calculatedPassword, runtime, nfcA)
                             resetButton.text = getString(R.string.runtime_reset)
-                        }catch (e: IOException) {
+                        }catch (e: TagLostException) {
                             e.printStackTrace()
                         }
 
