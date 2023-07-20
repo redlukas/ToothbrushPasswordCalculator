@@ -44,4 +44,6 @@
         vestibulum. Fusce dictum libero quis erat maximus, vitae volutpat diam dignissim.
     </string>
     <string name="command_brush">Hold the base of a brush against your Phone!</string>
+    <string name="touch_the_tag_to_the_phone_again">Touch the Tag to the phone again!</string>
+    <string name="runtime_reset">Runtime reset!</string>
 </resources>

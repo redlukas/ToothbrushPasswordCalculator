@@ -27,7 +27,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dateDescription: TextView
     private lateinit var idDescription: TextView
     private lateinit var resetButton: Button
-    private lateinit var nfcA: NfcA
+    private var mustOverwrite = false
+    private var lastScannedTagID = ""
+    private var calculatedPassword = ""
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,50 +57,22 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-
-        val intent = Intent(this, javaClass).apply {
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val techList = arrayOf(arrayOf(NfcA::class.java.name))
-
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, null, techList)
+        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, null)
     }
 
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableForegroundDispatch(this)
-        if (::nfcA.isInitialized) {
-            try {
-                nfcA.close()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (NfcAdapter.ACTION_TECH_DISCOVERED == intent.action) {
-            nfcA = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG))
-            try {
-                nfcA.connect()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            }
-
-            // Pass the received intent to handleIntent() method
-            handleIntent(intent)
-        }
+        handleIntent(intent)
     }
-
 
     private fun handleIntent(intent: Intent) {
         when (intent.action) {
-            NfcAdapter.ACTION_NDEF_DISCOVERED, NfcAdapter.ACTION_TECH_DISCOVERED -> {
+            NfcAdapter.ACTION_NDEF_DISCOVERED -> {
                 var idString: String = ""
                 var mfgDate: String = ""
                 // Fetch the NFC tag's ID.
@@ -109,11 +84,8 @@ class MainActivity : AppCompatActivity() {
                     idTextView.text = idString
                     idDescription.visibility = View.VISIBLE
                 }
-                if (!::nfcA.isInitialized) {
-                    val tag = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)
-                    nfcA = NfcA.get(tag)
-                    nfcA.connect()
-                }
+                val nfcA = NfcA.get(tag)
+                nfcA.connect()
 
                 val responseLow = nfcA.transceive(byteArrayOf(0x30, 0x21)).toHex()
                 val responseHigh = nfcA.transceive(byteArrayOf(0x30, 0x22)).toHex()
@@ -122,44 +94,42 @@ class MainActivity : AppCompatActivity() {
                 mfgDateView.visibility = View.VISIBLE
                 dateDescription.visibility = View.VISIBLE
                 val runtime = nfcA.transceive(byteArrayOf(0x30, 0x24)).toHex()
-                Log.d("runtime", runtime)
+                Log.d("the runtime of the tag is", runtime)
                 val idStringFixed = idString
                 val mfgDateFixed = mfgDate
-                if (!idStringFixed.isNullOrEmpty() && !mfgDateFixed.isNullOrEmpty()) {
-                    val password =
-                        getPassword(idStringFixed.toByteArray(), mfgDateFixed.toByteArray())
-                    if (!password.isNullOrEmpty()) {
-                        passwordView.text = password
-                        passwordView.visibility = View.VISIBLE
-                        passwordDescription.visibility = View.VISIBLE
-                        resetButton.setOnClickListener { resetRuntime(password, runtime, nfcA) }
-                        resetButton.visibility = View.VISIBLE
+                if (idStringFixed.isNotEmpty() && mfgDateFixed.isNotEmpty()) {
+                    Log.d("handleIntent", "idSting and mfgDate is not empty")
+                    if (mustOverwrite && lastScannedTagID === idStringFixed) {
+                        Log.d("overwriting", "setting the runtime to 0")
+                        try {
+                            resetRuntime(calculatedPassword, runtime, nfcA)
+                            resetButton.text = getString(R.string.runtime_reset)
+                        }catch (e: IOException) {
+                            e.printStackTrace()
+                        }
+
+
+                    } else {
+                        Log.d("handleIntent", "calculating password")
+                        val password =
+                            getPassword(idStringFixed.toByteArray(), mfgDateFixed.toByteArray())
+                        if (password.isNotEmpty()) {
+                            passwordView.text = password
+                            passwordView.visibility = View.VISIBLE
+                            passwordDescription.visibility = View.VISIBLE
+                            resetButton.setOnClickListener {
+                                resetButton.text = getString(R.string.touch_the_tag_to_the_phone_again)
+                                mustOverwrite = true
+                            }
+                            resetButton.visibility = View.VISIBLE
+                            lastScannedTagID = idStringFixed
+                            calculatedPassword = password
+                        }
                     }
                 }
+                nfcA.close()
             }
         }
-    }
-
-    private fun resetRuntime(password: String, runtime:String, nfcA: NfcA) {
-        // Construct the AUTH command.
-        val authCommand = byteArrayOf(0x1B) + password.hexStringToByteArray()
-
-        // Transmit the AUTH command. This should return PACK if successful.
-        val pack = nfcA.transceive(authCommand)
-
-        // Convert the current value to a byte array
-        val currentBytes = runtime.hexStringToByteArray()
-
-        // Extract the bytes you want to keep from the current value
-        // Assuming that these are the 3rd and 4th bytes in the array
-        val keepByte1 = currentBytes[2]
-        val keepByte2 = currentBytes[3]
-
-        // Construct the WRITE command to overwrite the first two bytes
-        val writeCommand = byteArrayOf(0xA2.toByte(), 0x24.toByte(), 0x00, 0x00, keepByte1, keepByte2)
-
-        // Transmit the WRITE command. This does not return any data if successful.
-        nfcA.transceive(writeCommand)
     }
 
 
@@ -185,7 +155,32 @@ class MainActivity : AppCompatActivity() {
         return crc
     }
 
-    private fun getPassword(nfctagUid: ByteArray, nfcTagHeadID: ByteArray): String {
+    private fun resetRuntime(password: String, runtime: String, nfcA: NfcA) {
+        Log.d("main", "resetRuntime")
+        // Construct the AUTH command.
+        val authCommand = byteArrayOf(0x1B) + password.hexStringToByteArray()
+
+        // Transmit the AUTH command. This should return PACK if successful.
+        val pack = nfcA.transceive(authCommand)
+
+        // Convert the current value to a byte array
+        val currentBytes = runtime.hexStringToByteArray()
+
+        // Extract the bytes you want to keep from the current value
+        // Assuming that these are the 3rd and 4th bytes in the array
+        val keepByte1 = currentBytes[2]
+        val keepByte2 = currentBytes[3]
+
+        // Construct the WRITE command to overwrite the first two bytes
+        val writeCommand =
+            byteArrayOf(0xA2.toByte(), 0x24.toByte(), 0x00, 0x00, keepByte1, keepByte2)
+
+        // Transmit the WRITE command. This does not return any data if successful.
+        nfcA.transceive(writeCommand)
+    }
+
+
+    fun getPassword(nfctagUid: ByteArray, nfcTagHeadID: ByteArray): String {
         var crcCalc = crc16(0x49A3, nfctagUid, nfctagUid.size) // Calculate the NTAG UID CRC
 
         crcCalc =
@@ -199,7 +194,8 @@ class MainActivity : AppCompatActivity() {
         val arr = byteBuffer.array()
         crcCalc =
             (arr[3].toInt() shl 24) or (arr[2].toInt() and 0xff shl 16) or (arr[1].toInt() and 0xff shl 8) or (arr[0].toInt() and 0xff)
-        return crcCalc.toString(16).uppercase()
+        val password = crcCalc.toString(16).uppercase()
+        return password
     }
 
     fun hexToString(lower: String, higher: String): String {
@@ -211,7 +207,7 @@ class MainActivity : AppCompatActivity() {
         return trimmedHex.map { it.toInt(16).toChar() }.joinToString("")
     }
 
-    fun String.hexStringToByteArray(): ByteArray {
+    private fun String.hexStringToByteArray(): ByteArray {
         val hexString = this.replace(":", "")
         val data = ByteArray(hexString.length / 2)
         for (i in data.indices) {
@@ -221,6 +217,5 @@ class MainActivity : AppCompatActivity() {
         }
         return data
     }
-
 
 }
